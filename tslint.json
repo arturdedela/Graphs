@@ -26,6 +26,7 @@
         "no-consecutive-blank-lines": [true, 2],
         "indent": [true, "spaces", 4],
         "jsx-alignment": true,
-        "jsx-boolean-value": false
+        "jsx-boolean-value": false,
+        "no-bitwise": false
     }
 }
