@@ -1,21 +1,16 @@
 import * as React from "react";
 
 import "./App.scss";
-import { observer } from "mobx-react";
-import { lazyInject } from "./IoC";
-import { CounterStore } from "./CounterStore";
+import Counter from "./components/Counter/Counter";
 
-@observer
+
 class App extends React.Component {
-    @lazyInject(CounterStore)
-    public counterStore: CounterStore;
 
     public render() {
         return (
             <div>
-                <h1>React webpack</h1>
-                <p>Counter: { this.counterStore.counter }</p>
-                <button onClick={this.counterStore.increment}>Plus</button>
+                <h1>React-Mobx-Typescript</h1>
+                <Counter />
             </div>
         );
     }

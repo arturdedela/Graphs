@@ -1,5 +1,5 @@
 import { observable, action } from "mobx";
-import { provide } from "./IoC";
+import { provide } from "../../IoC";
 
 @provide.singleton()
 export class CounterStore {
