@@ -9,6 +9,11 @@
   },
   "author": "arturdedela",
   "license": "ISC",
+  "husky": {
+    "hooks": {
+      "pre-commit": "npx tslint --project ."
+    }
+  },
   "dependencies": {
     "inversify": "latest",
     "inversify-binding-decorators": "latest",
@@ -33,6 +38,7 @@
     "enzyme-adapter-react-16": "^1.11.2",
     "file-loader": "^3.0.1",
     "html-webpack-plugin": "^3.2.0",
+    "husky": "^1.3.1",
     "jest": "^24.3.1",
     "node-sass": "^4.11.0",
     "sass-loader": "^7.1.0",
