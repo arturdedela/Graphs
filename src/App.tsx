@@ -1,5 +1,4 @@
 import * as React from "react";
-import { Segment } from "semantic-ui-react";
 
 import "./App.scss";
 import { observer } from "mobx-react";
@@ -13,11 +12,11 @@ class App extends React.Component {
 
     public render() {
         return (
-            <Segment>
+            <div>
                 <h1>React webpack</h1>
                 <p>Counter: { this.counterStore.counter }</p>
                 <button onClick={this.counterStore.increment}>Plus</button>
-            </Segment>
+            </div>
         );
     }
 }
