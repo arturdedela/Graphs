@@ -1,7 +1,6 @@
 import "reflect-metadata";
 import { Container, ContainerModule, interfaces } from "inversify";
 import { fluentProvide } from "inversify-binding-decorators";
-import { RouterStore } from "mobx-react-router";
 
 const container = new Container({
     autoBindInjectable: true,
@@ -9,7 +8,6 @@ const container = new Container({
 });
 
 // You can add here external services to container
-container.bind(RouterStore).toConstantValue(new RouterStore());
 
 const provide = {
     singleton: () => (target: any) =>
