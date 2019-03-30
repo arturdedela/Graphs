@@ -27,6 +27,7 @@
         "indent": [true, "spaces", 4],
         "jsx-alignment": true,
         "jsx-boolean-value": false,
-        "no-bitwise": false
+        "no-bitwise": false,
+        "variable-name": [true, "allow-leading-underscore"]
     }
 }
