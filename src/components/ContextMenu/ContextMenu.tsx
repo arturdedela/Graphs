@@ -29,17 +29,15 @@ class ContextMenu extends React.Component<IProps> {
 
     public componentDidMount() {
         this.props.element.addEventListener("contextmenu", this.contextMenuHandler);
+        document.addEventListener("click", this.hideMenu);
     }
 
     public componentWillUnmount() {
         this.props.element.removeEventListener("contextmenu", this.contextMenuHandler);
+        document.removeEventListener("click", this.hideMenu);
     }
 
     public render() {
-        if (!this.opened) {
-            return null;
-        }
-
         return (
             <div
                 className="ui dropdown"
@@ -49,13 +47,18 @@ class ContextMenu extends React.Component<IProps> {
                     top: this.y
                 }}
             >
-                <Dropdown.Menu open>
+                <Dropdown.Menu open={this.opened}>
                     {this.props.items.map(({ onClick, ...item }, key) =>
                         <Dropdown.Item key={key} {...item} onClick={this.itemClickHandler(onClick)} />
                     )}
                 </Dropdown.Menu>
             </div>
         );
+    }
+
+    @bind
+    private hideMenu() {
+        this.opened = false;
     }
 
     @bind
@@ -71,7 +74,7 @@ class ContextMenu extends React.Component<IProps> {
     private itemClickHandler(callback: ItemClickHandler) {
         return (e: React.MouseEvent, data: DropdownItemProps) => {
             callback(this.x, this.y, data);
-            this.opened = false;
+            this.hideMenu();
         };
     }
 }
