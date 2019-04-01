@@ -14,6 +14,7 @@ interface IContextMenuItems extends Omit<DropdownItemProps, "onClick"> {
 
 interface IProps {
     element?: HTMLElement;
+    beforeOpen?: (e: MouseEvent) => boolean; // return false to prevent opening
     items: IContextMenuItems[];
 }
 
@@ -63,6 +64,9 @@ class ContextMenu extends React.Component<IProps> {
 
     @bind
     private contextMenuHandler(e: MouseEvent) {
+        if (this.props.beforeOpen && !this.props.beforeOpen(e)) {
+            return;
+        }
         e.preventDefault();
 
         this.x = e.clientX;
