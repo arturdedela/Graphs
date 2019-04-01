@@ -5,6 +5,7 @@ import ContextMenu from "../ContextMenu/ContextMenu";
 import { GraphNode, NodeColors } from "./GraphNode";
 import RadioGroup from "../RadioGroup/RadioGroup";
 import { GraphEdge } from "./GraphEdge";
+import { Graph } from "./Graph";
 
 
 enum EditMode {
@@ -18,11 +19,13 @@ class GraphEditor extends React.Component {
 
     private ctx: CanvasRenderingContext2D;
 
-    private nodes: GraphNode[] = [];
-    private activeNode: number = -1;
+    private graph = new Graph();
 
-    private edges: GraphEdge[] = [];
+    private activeNode?: string;
+    private ctxMenuNodeString: string = "";
+
     private newEdge?: GraphEdge;
+    private ctxMenuEdgeString: string = "";
 
     private editMode: EditMode = EditMode.Nodes;
 
@@ -58,12 +61,28 @@ class GraphEditor extends React.Component {
                 />
 
                 {this.canvas &&
+                <>
+                <ContextMenu
+                    element={this.canvas}
+                    beforeOpen={this.isNodeContextMenu}
+                    items={[
+                        { text: "Delete", onClick: this.deleteNode }
+                    ]}
+                />
+                <ContextMenu
+                    element={this.canvas}
+                    beforeOpen={this.isEdgeContextMenu}
+                    items={[
+                        { text: "Change weight", onClick: this.addNode }
+                    ]}
+                />
                 <ContextMenu
                     element={this.canvas}
                     items={[
                         { text: "Add node", onClick: this.addNode }
                     ]}
                 />
+                </>
                 }
             </div>
         );
@@ -73,7 +92,7 @@ class GraphEditor extends React.Component {
     public redraw() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-        this.nodes.forEach(node => {
+        this.graph.nodes.forEach(node => {
             this.ctx.save();
 
             this.ctx.strokeStyle = node.color;
@@ -83,7 +102,7 @@ class GraphEditor extends React.Component {
             this.ctx.restore();
         });
 
-        this.edges.forEach((edge) => {
+        this.graph.edges.forEach((edge) => {
             this.ctx.save();
 
             this.ctx.strokeStyle = edge.color;
@@ -106,40 +125,50 @@ class GraphEditor extends React.Component {
     private addNode(clientX: number, clientY: number) {
         const { x, y } = this.clientToCanvas(clientX, clientY);
 
-        this.nodes.push(new GraphNode(x, y, this.nodes.length.toString()));
+        this.graph.addNode(x, y);
+        this.redraw();
+    }
+
+    @bind
+    private deleteNode() {
+        this.graph.removeNode(this.ctxMenuNodeString);
         this.redraw();
     }
 
     @bind
     private getNodeFromCoordinates(x: number, y: number) {
-        return this.nodes.findIndex(node => this.ctx.isPointInPath(node.path, x, y));
+        const node = this.graph.nodes.find(n => this.ctx.isPointInPath(n.path, x, y));
+
+        return node ? node.key : "";
     }
 
     @bind
     private getEdgeFromCoordinates(x: number, y: number) {
-        return this.edges.findIndex(edge => this.ctx.isPointInStroke(edge.path, x, y));
+        const edge = this.graph.edges.find(e => this.ctx.isPointInStroke(e.path, x, y));
+
+        return edge ? edge.key : "";
     }
 
     @bind
     private canvasMouseDownHandler(e: React.MouseEvent) {
         const { x, y } = this.clientToCanvas(e.clientX, e.clientY);
 
-        if (this.activeNode !== -1) {
-            const sameSelectedNode = this.ctx.isPointInPath(this.nodes[this.activeNode].path, x, y);
+        if (this.activeNode) {
+            const sameSelectedNode = this.ctx.isPointInPath(this.graph.getNode(this.activeNode).path, x, y);
             if (sameSelectedNode) {
                 return;
             }
 
-            this.nodes[this.activeNode].color = NodeColors.Default;
+            this.graph.getNode(this.activeNode).color = NodeColors.Default;
         }
 
         this.activeNode = this.getNodeFromCoordinates(x, y);
 
-        if (this.activeNode !== - 1) {
-            this.nodes[this.activeNode].color = NodeColors.Active;
+        if (this.activeNode) {
+            this.graph.getNode(this.activeNode).color = NodeColors.Active;
 
             if (this.editMode === EditMode.Edges) {
-                this.newEdge = new GraphEdge(this.nodes[this.activeNode], new GraphNode(x, y));
+                this.newEdge = new GraphEdge(this.graph.getNode(this.activeNode), new GraphNode(x, y));
             }
 
             this.redraw();
@@ -148,14 +177,14 @@ class GraphEditor extends React.Component {
 
     @bind
     private canvasMouseMoveHandler(e: React.MouseEvent) {
-        if (this.activeNode === -1) {
+        if (!this.activeNode) {
             return;
         }
 
         const { x, y } = this.clientToCanvas(e.clientX, e.clientY);
 
         if (this.editMode === EditMode.Nodes) {
-            this.nodes[this.activeNode].moveTo(x, y);
+            this.graph.getNode(this.activeNode).moveTo(x, y);
         } else {
             this.newEdge.to.moveTo(x, y);
         }
@@ -165,25 +194,49 @@ class GraphEditor extends React.Component {
 
     @bind
     private canvasMouseUpHandler(e: React.MouseEvent) {
-        if (this.activeNode === -1) {
+        if (!this.activeNode) {
             return;
         }
 
         const { x, y } = this.clientToCanvas(e.clientX, e.clientY);
 
         if (this.editMode === EditMode.Edges) {
-            const toIndex = this.getNodeFromCoordinates(x, y);
+            const toNode = this.getNodeFromCoordinates(x, y);
 
-            if (toIndex !== -1) {
-                this.edges.push(new GraphEdge(this.newEdge.from, this.nodes[toIndex]));
+            if (toNode) {
+                this.graph.addEdge(this.activeNode, toNode);
             }
 
             this.newEdge = undefined;
         }
 
-        this.nodes[this.activeNode].color = NodeColors.Default;
-        this.activeNode = -1;
+        this.graph.getNode(this.activeNode).color = NodeColors.Default;
+        this.activeNode = "";
         this.redraw();
+    }
+
+    @bind
+    private isNodeContextMenu(e: MouseEvent) {
+        const { x, y } = this.clientToCanvas(e.clientX, e.clientY);
+
+        this.ctxMenuNodeString = this.getNodeFromCoordinates(x, y);
+        if (this.ctxMenuNodeString) {
+            e.stopImmediatePropagation();
+        }
+
+        return !!this.ctxMenuNodeString;
+    }
+
+    @bind
+    private isEdgeContextMenu(e: MouseEvent) {
+        const { x, y } = this.clientToCanvas(e.clientX, e.clientY);
+
+        this.ctxMenuEdgeString = this.getEdgeFromCoordinates(x, y);
+        if (this.ctxMenuEdgeString) {
+            e.stopImmediatePropagation();
+        }
+
+        return !!this.ctxMenuEdgeString;
     }
 
     @bind

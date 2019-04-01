@@ -6,8 +6,11 @@ export enum NodeColors {
 }
 
 export class GraphNode {
+    public readonly key: string;
     public label?: string;
     public color?: string;
+
+    public incidentEdges: string[] = [];
 
     private _path: Path2D;
     public get path() { return this._path; }
@@ -24,7 +27,16 @@ export class GraphNode {
         this.color = color;
         this.label = label;
 
+        this.key = `node_${x}:${y}_${Date.now()}`;
+
         this.createPath();
+    }
+
+    public toJSON(): string {
+        return JSON.stringify({
+            x: this._x,
+            y: this._y
+        });
     }
 
     public moveTo(x: number, y: number) {

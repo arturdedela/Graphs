@@ -3,6 +3,7 @@ import { autorun, observable } from "mobx";
 import bind from "../../decorators/bind";
 
 export class GraphEdge {
+    public readonly key: string;
     private _path: Path2D;
     public get path() { return this._path; }
 
@@ -25,6 +26,8 @@ export class GraphEdge {
     ) {
         this._from = from;
         this._to = to;
+
+        this.key = `edge_${this.from.x}:${this.from.y}_${Date.now()}`;
 
         autorun(this.createPath);
     }
