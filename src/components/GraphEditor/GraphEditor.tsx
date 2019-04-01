@@ -4,21 +4,12 @@ import bind from "../../decorators/bind";
 import ContextMenu from "../ContextMenu/ContextMenu";
 import { GraphNode, NodeColors } from "./GraphNode";
 import RadioGroup from "../RadioGroup/RadioGroup";
+import { GraphEdge } from "./GraphEdge";
 
 
 enum EditMode {
     Nodes,
     Edges
-}
-
-interface IEdge {
-    from: GraphNode;
-    to: GraphNode;
-}
-
-interface INewEdge {
-    from: GraphNode;
-    to?: { x: number, y: number };
 }
 
 class GraphEditor extends React.Component {
@@ -30,8 +21,8 @@ class GraphEditor extends React.Component {
     private nodes: GraphNode[] = [];
     private activeNode: number = -1;
 
-    private edges: IEdge[] = [];
-    private newEdge?: INewEdge;
+    private edges: GraphEdge[] = [];
+    private newEdge?: GraphEdge;
 
     private editMode: EditMode = EditMode.Nodes;
 
@@ -84,33 +75,25 @@ class GraphEditor extends React.Component {
 
         this.nodes.forEach(node => {
             this.ctx.save();
-            this.ctx.beginPath();
 
             this.ctx.strokeStyle = node.color;
             this.ctx.strokeText(node.label, node.x - 3, node.y - 15, 20);
-
             this.ctx.stroke(node.path);
+
             this.ctx.restore();
         });
 
-        this.edges.forEach(({ from, to }) => {
+        this.edges.forEach((edge) => {
             this.ctx.save();
-            this.ctx.beginPath();
 
-            this.ctx.lineWidth = 2;
-            this.ctx.moveTo(from.x, from.y);
-            this.ctx.lineTo(to.x, to.y);
+            this.ctx.strokeStyle = edge.color;
+            this.ctx.stroke(edge.path);
 
-            this.ctx.stroke();
             this.ctx.restore();
         });
 
         if (this.newEdge) {
-            const { from, to } = this.newEdge;
-            this.ctx.beginPath();
-            this.ctx.moveTo(from.x, from.y);
-            this.ctx.lineTo(to.x, to.y);
-            this.ctx.stroke();
+            this.ctx.stroke(this.newEdge.path);
         }
     }
 
@@ -133,6 +116,11 @@ class GraphEditor extends React.Component {
     }
 
     @bind
+    private getEdgeFromCoordinates(x: number, y: number) {
+        return this.edges.findIndex(edge => this.ctx.isPointInStroke(edge.path, x, y));
+    }
+
+    @bind
     private canvasMouseDownHandler(e: React.MouseEvent) {
         const { x, y } = this.clientToCanvas(e.clientX, e.clientY);
 
@@ -151,10 +139,7 @@ class GraphEditor extends React.Component {
             this.nodes[this.activeNode].color = NodeColors.Active;
 
             if (this.editMode === EditMode.Edges) {
-                this.newEdge = {
-                    from: this.nodes[this.activeNode],
-                    to: { x, y }
-                };
+                this.newEdge = new GraphEdge(this.nodes[this.activeNode], new GraphNode(x, y));
             }
 
             this.redraw();
@@ -172,7 +157,7 @@ class GraphEditor extends React.Component {
         if (this.editMode === EditMode.Nodes) {
             this.nodes[this.activeNode].moveTo(x, y);
         } else {
-            this.newEdge.to = { x, y };
+            this.newEdge.to.moveTo(x, y);
         }
 
         this.redraw();
@@ -190,10 +175,7 @@ class GraphEditor extends React.Component {
             const toIndex = this.getNodeFromCoordinates(x, y);
 
             if (toIndex !== -1) {
-                this.edges.push({
-                    from: this.newEdge.from,
-                    to: this.nodes[toIndex]
-                });
+                this.edges.push(new GraphEdge(this.newEdge.from, this.nodes[toIndex]));
             }
 
             this.newEdge = undefined;

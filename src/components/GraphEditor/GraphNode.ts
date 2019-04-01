@@ -1,3 +1,4 @@
+import { observable } from "mobx";
 
 export enum NodeColors {
     Default = "#000",
@@ -11,10 +12,15 @@ export class GraphNode {
     private _path: Path2D;
     public get path() { return this._path; }
 
+    @observable private _x: number;
     public get x() { return this._x; }
+
+    @observable private _y: number;
     public get y() { return this._y; }
 
-    constructor(private _x: number, private _y: number, label?: string, color: string = NodeColors.Default) {
+    constructor(x: number, y: number, label?: string, color: string = NodeColors.Default) {
+        this._x = x;
+        this._y = y;
         this.color = color;
         this.label = label;
 
