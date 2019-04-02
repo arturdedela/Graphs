@@ -10,7 +10,7 @@ export class GraphNode {
     public label?: string;
     public color?: string;
 
-    public incidentEdges: string[] = [];
+    public incidentEdges: Set<string> = new Set();
 
     private _path: Path2D;
     public get path() { return this._path; }

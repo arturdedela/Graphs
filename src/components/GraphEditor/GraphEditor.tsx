@@ -1,11 +1,11 @@
 import * as React from "react";
 import "./style.scss";
 import bind from "../../decorators/bind";
-import ContextMenu from "../ContextMenu/ContextMenu";
 import { GraphNode, NodeColors } from "./GraphNode";
 import RadioGroup from "../RadioGroup/RadioGroup";
 import { GraphEdge } from "./GraphEdge";
 import { Graph } from "./Graph";
+import CanvasContextMenu, { AvailableMenus } from "../CanvasContextMenu/CanvasContextMenu";
 
 
 enum EditMode {
@@ -13,26 +13,45 @@ enum EditMode {
     Edges
 }
 
+enum ContextMenuName {
+    Canvas = "canvas",
+    Node  = "node",
+    Edge = "edge"
+}
+
 class GraphEditor extends React.Component {
     private canvasRef = React.createRef<HTMLCanvasElement>();
     private get canvas() { return this.canvasRef.current; }
+    private canvasID = "graph-canvas";
 
     private ctx: CanvasRenderingContext2D;
 
     private graph = new Graph();
 
-    private activeNode?: string;
-    private ctxMenuNodeString: string = "";
+    private clickedNodeKey: string = "";
+    private ctxMenuNodeKey: string = "";
 
     private newEdge?: GraphEdge;
-    private ctxMenuEdgeString: string = "";
+    private ctxMenuEdgeKey: string = "";
 
     private editMode: EditMode = EditMode.Nodes;
+
+    private contextMenus: AvailableMenus = {
+        [ContextMenuName.Canvas]: [
+            { text: "Add node", onClick: this.addNode }
+        ],
+        [ContextMenuName.Node]: [
+            { text: "Delete", onClick: this.deleteNode }
+        ],
+        [ContextMenuName.Edge]: [
+            { text: "Delete", onClick: this.deleteEdge }
+        ]
+    };
 
     public componentDidMount() {
         this.ctx = this.canvas.getContext("2d");
 
-        // Now we have canvasRef, render ContextMenu
+        // Now we have canvasRef, render CanvasContextMenu
         this.forceUpdate();
     }
 
@@ -43,6 +62,7 @@ class GraphEditor extends React.Component {
                     ref={this.canvasRef}
                     width={900}
                     height={500}
+                    id={this.canvasID}
                     className="canvas"
                     onMouseDown={this.canvasMouseDownHandler}
                     onMouseMove={this.canvasMouseMoveHandler}
@@ -60,30 +80,11 @@ class GraphEditor extends React.Component {
                     onChange={this.changeEditMode}
                 />
 
-                {this.canvas &&
-                <>
-                <ContextMenu
-                    element={this.canvas}
-                    beforeOpen={this.isNodeContextMenu}
-                    items={[
-                        { text: "Delete", onClick: this.deleteNode }
-                    ]}
+                <CanvasContextMenu
+                    canvasID={this.canvasID}
+                    chooseItemsBeforeOpen={this.chooseContextMenu}
+                    availableMenus={this.contextMenus}
                 />
-                <ContextMenu
-                    element={this.canvas}
-                    beforeOpen={this.isEdgeContextMenu}
-                    items={[
-                        { text: "Change weight", onClick: this.addNode }
-                    ]}
-                />
-                <ContextMenu
-                    element={this.canvas}
-                    items={[
-                        { text: "Add node", onClick: this.addNode }
-                    ]}
-                />
-                </>
-                }
             </div>
         );
     }
@@ -92,24 +93,7 @@ class GraphEditor extends React.Component {
     public redraw() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-        this.graph.nodes.forEach(node => {
-            this.ctx.save();
-
-            this.ctx.strokeStyle = node.color;
-            this.ctx.strokeText(node.label, node.x - 3, node.y - 15, 20);
-            this.ctx.stroke(node.path);
-
-            this.ctx.restore();
-        });
-
-        this.graph.edges.forEach((edge) => {
-            this.ctx.save();
-
-            this.ctx.strokeStyle = edge.color;
-            this.ctx.stroke(edge.path);
-
-            this.ctx.restore();
-        });
+        this.graph.paint(this.ctx);
 
         if (this.newEdge) {
             this.ctx.stroke(this.newEdge.path);
@@ -131,7 +115,13 @@ class GraphEditor extends React.Component {
 
     @bind
     private deleteNode() {
-        this.graph.removeNode(this.ctxMenuNodeString);
+        this.graph.removeNode(this.ctxMenuNodeKey);
+        this.redraw();
+    }
+
+    @bind
+    private deleteEdge() {
+        this.graph.removeEdge(this.ctxMenuEdgeKey);
         this.redraw();
     }
 
@@ -153,22 +143,22 @@ class GraphEditor extends React.Component {
     private canvasMouseDownHandler(e: React.MouseEvent) {
         const { x, y } = this.clientToCanvas(e.clientX, e.clientY);
 
-        if (this.activeNode) {
-            const sameSelectedNode = this.ctx.isPointInPath(this.graph.getNode(this.activeNode).path, x, y);
+        if (this.clickedNodeKey) {
+            const sameSelectedNode = this.ctx.isPointInPath(this.graph.getNode(this.clickedNodeKey).path, x, y);
             if (sameSelectedNode) {
                 return;
             }
 
-            this.graph.getNode(this.activeNode).color = NodeColors.Default;
+            this.graph.getNode(this.clickedNodeKey).color = NodeColors.Default;
         }
 
-        this.activeNode = this.getNodeFromCoordinates(x, y);
+        this.clickedNodeKey = this.getNodeFromCoordinates(x, y);
 
-        if (this.activeNode) {
-            this.graph.getNode(this.activeNode).color = NodeColors.Active;
+        if (this.clickedNodeKey) {
+            this.graph.getNode(this.clickedNodeKey).color = NodeColors.Active;
 
             if (this.editMode === EditMode.Edges) {
-                this.newEdge = new GraphEdge(this.graph.getNode(this.activeNode), new GraphNode(x, y));
+                this.newEdge = new GraphEdge(this.graph.getNode(this.clickedNodeKey), new GraphNode(x, y));
             }
 
             this.redraw();
@@ -177,14 +167,14 @@ class GraphEditor extends React.Component {
 
     @bind
     private canvasMouseMoveHandler(e: React.MouseEvent) {
-        if (!this.activeNode) {
+        if (!this.clickedNodeKey) {
             return;
         }
 
         const { x, y } = this.clientToCanvas(e.clientX, e.clientY);
 
         if (this.editMode === EditMode.Nodes) {
-            this.graph.getNode(this.activeNode).moveTo(x, y);
+            this.graph.getNode(this.clickedNodeKey).moveTo(x, y);
         } else {
             this.newEdge.to.moveTo(x, y);
         }
@@ -194,7 +184,7 @@ class GraphEditor extends React.Component {
 
     @bind
     private canvasMouseUpHandler(e: React.MouseEvent) {
-        if (!this.activeNode) {
+        if (!this.clickedNodeKey) {
             return;
         }
 
@@ -204,39 +194,32 @@ class GraphEditor extends React.Component {
             const toNode = this.getNodeFromCoordinates(x, y);
 
             if (toNode) {
-                this.graph.addEdge(this.activeNode, toNode);
+                this.graph.addEdge(this.clickedNodeKey, toNode);
             }
 
             this.newEdge = undefined;
         }
 
-        this.graph.getNode(this.activeNode).color = NodeColors.Default;
-        this.activeNode = "";
+        this.graph.getNode(this.clickedNodeKey).color = NodeColors.Default;
+        this.clickedNodeKey = "";
         this.redraw();
     }
 
     @bind
-    private isNodeContextMenu(e: MouseEvent) {
+    private chooseContextMenu(e: MouseEvent): ContextMenuName {
         const { x, y } = this.clientToCanvas(e.clientX, e.clientY);
 
-        this.ctxMenuNodeString = this.getNodeFromCoordinates(x, y);
-        if (this.ctxMenuNodeString) {
-            e.stopImmediatePropagation();
+        this.ctxMenuNodeKey = this.getNodeFromCoordinates(x, y);
+        if (this.ctxMenuNodeKey) {
+            return ContextMenuName.Node;
         }
 
-        return !!this.ctxMenuNodeString;
-    }
-
-    @bind
-    private isEdgeContextMenu(e: MouseEvent) {
-        const { x, y } = this.clientToCanvas(e.clientX, e.clientY);
-
-        this.ctxMenuEdgeString = this.getEdgeFromCoordinates(x, y);
-        if (this.ctxMenuEdgeString) {
-            e.stopImmediatePropagation();
+        this.ctxMenuEdgeKey = this.getEdgeFromCoordinates(x, y);
+        if (this.ctxMenuEdgeKey) {
+            return ContextMenuName.Edge;
         }
 
-        return !!this.ctxMenuEdgeString;
+        return ContextMenuName.Canvas;
     }
 
     @bind

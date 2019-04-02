@@ -1,44 +1,48 @@
 import * as React from "react";
-import { Dropdown, DropdownItemProps } from "semantic-ui-react";
-import bind from "../../decorators/bind";
+import { Dropdown } from "semantic-ui-react";
 import { observable } from "mobx";
 import { observer } from "mobx-react";
+import bind from "../../decorators/bind";
 
-type Omit<T, K extends keyof T> = Pick<T, Exclude<keyof T, K>>;
+type ItemClickHandler = (x: number, y: number) => void;
 
-type ItemClickHandler = (x: number, y: number, data: DropdownItemProps) => void;
-
-interface IContextMenuItems extends Omit<DropdownItemProps, "onClick"> {
+interface IMenuItemProps {
+    text: string;
     onClick: ItemClickHandler;
 }
 
+export type AvailableMenus = Record<string, IMenuItemProps[]>;
+
 interface IProps {
-    element?: HTMLElement;
-    beforeOpen?: (e: MouseEvent) => boolean; // return false to prevent opening
-    items: IContextMenuItems[];
+    canvasID: string;
+    chooseItemsBeforeOpen: (e: MouseEvent) => string;
+    availableMenus: AvailableMenus;
 }
 
 @observer
-class ContextMenu extends React.Component<IProps> {
-    public static defaultProps = {
-        element: document
-    };
-
+class CanvasContextMenu extends React.Component<IProps> {
     @observable private x: number;
     @observable private y: number;
     @observable private opened: boolean;
+    @observable private menuName: string;
 
     public componentDidMount() {
-        this.props.element.addEventListener("contextmenu", this.contextMenuHandler);
+        document.getElementById(this.props.canvasID).addEventListener("contextmenu", this.contextMenuHandler);
         document.addEventListener("click", this.hideMenu);
     }
 
     public componentWillUnmount() {
-        this.props.element.removeEventListener("contextmenu", this.contextMenuHandler);
+        document.getElementById(this.props.canvasID).removeEventListener("contextmenu", this.contextMenuHandler);
         document.removeEventListener("click", this.hideMenu);
     }
 
     public render() {
+        if (!this.opened) {
+            return null;
+        }
+
+        const currentMenuItems = this.props.availableMenus[this.menuName];
+
         return (
             <div
                 className="ui dropdown"
@@ -48,8 +52,8 @@ class ContextMenu extends React.Component<IProps> {
                     top: this.y
                 }}
             >
-                <Dropdown.Menu open={this.opened}>
-                    {this.props.items.map(({ onClick, ...item }, key) =>
+                <Dropdown.Menu open>
+                    {currentMenuItems.map(({ onClick, ...item }, key) =>
                         <Dropdown.Item key={key} {...item} onClick={this.itemClickHandler(onClick)} />
                     )}
                 </Dropdown.Menu>
@@ -64,10 +68,8 @@ class ContextMenu extends React.Component<IProps> {
 
     @bind
     private contextMenuHandler(e: MouseEvent) {
-        if (this.props.beforeOpen && !this.props.beforeOpen(e)) {
-            return;
-        }
         e.preventDefault();
+        this.menuName = this.props.chooseItemsBeforeOpen(e);
 
         this.x = e.clientX;
         this.y = e.clientY;
@@ -76,11 +78,11 @@ class ContextMenu extends React.Component<IProps> {
 
     @bind
     private itemClickHandler(callback: ItemClickHandler) {
-        return (e: React.MouseEvent, data: DropdownItemProps) => {
-            callback(this.x, this.y, data);
+        return () => {
+            callback(this.x, this.y);
             this.hideMenu();
         };
     }
 }
 
-export default ContextMenu;
+export default CanvasContextMenu;

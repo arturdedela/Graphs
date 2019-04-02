@@ -34,12 +34,43 @@ export class Graph {
         const edge = new GraphEdge(from, to);
         this._edges.set(edge.key, edge);
 
-        from.incidentEdges.push(edge.key);
-        to.incidentEdges.push(edge.key);
+        from.incidentEdges.add(edge.key);
+        to.incidentEdges.add(edge.key);
     }
 
     public getEdge(edgeKey: string) {
         return this._edges.get(edgeKey);
+    }
+
+    public removeEdge(edgeKey: string) {
+        const { from, to } = this.getEdge(edgeKey);
+        from.incidentEdges.delete(edgeKey);
+        to.incidentEdges.delete(edgeKey);
+        this._edges.delete(edgeKey);
+    }
+
+    public paint(ctx: CanvasRenderingContext2D) {
+        this._nodes.forEach(node => {
+            ctx.save();
+
+            ctx.strokeStyle = node.color;
+            ctx.strokeText(node.label, node.x - 3, node.y - 15, 20);
+            ctx.stroke(node.path);
+
+            ctx.restore();
+        });
+
+        this._edges.forEach(edge => {
+            ctx.save();
+
+            ctx.lineJoin = "round";
+            ctx.lineCap = "round";
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = edge.color;
+            ctx.stroke(edge.path);
+
+            ctx.restore();
+        });
     }
 
 
