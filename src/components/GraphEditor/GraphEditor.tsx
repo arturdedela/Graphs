@@ -1,12 +1,13 @@
 import * as React from "react";
 import "./style.scss";
 import bind from "../../decorators/bind";
-import { GraphNode, NodeColors } from "./GraphNode";
+import { GraphNode, NodeColors } from "./Graph/GraphNode";
 import RadioGroup from "../RadioGroup/RadioGroup";
-import { GraphEdge } from "./GraphEdge";
-import { Graph } from "./Graph";
+import { EdgeColor, GraphEdge } from "./Graph/GraphEdge";
+import { Graph } from "./Graph/Graph";
 import CanvasContextMenu, { AvailableMenus } from "../CanvasContextMenu/CanvasContextMenu";
 
+const LEFT_MOUSE_BUTTON = 0;
 
 enum EditMode {
     Nodes,
@@ -32,6 +33,8 @@ class GraphEditor extends React.Component {
     private ctxMenuNodeKey: string = "";
 
     private newEdge?: GraphEdge;
+    private clickedEdgeKey: string = "";
+    private hoveredEdge: string = "";
     private ctxMenuEdgeKey: string = "";
 
     private editMode: EditMode = EditMode.Nodes;
@@ -50,9 +53,6 @@ class GraphEditor extends React.Component {
 
     public componentDidMount() {
         this.ctx = this.canvas.getContext("2d");
-
-        // Now we have canvasRef, render CanvasContextMenu
-        this.forceUpdate();
     }
 
     public render() {
@@ -134,49 +134,64 @@ class GraphEditor extends React.Component {
 
     @bind
     private getEdgeFromCoordinates(x: number, y: number) {
-        const edge = this.graph.edges.find(e => this.ctx.isPointInStroke(e.path, x, y));
+        const edge = this.graph.edges.find(e => this.ctx.isPointInPath(e.hitRegion, x, y));
 
         return edge ? edge.key : "";
     }
 
     @bind
     private canvasMouseDownHandler(e: React.MouseEvent) {
+        if (e.button !== LEFT_MOUSE_BUTTON) {
+            return;
+        }
+
         const { x, y } = this.clientToCanvas(e.clientX, e.clientY);
 
         if (this.clickedNodeKey) {
-            const sameSelectedNode = this.ctx.isPointInPath(this.graph.getNode(this.clickedNodeKey).path, x, y);
-            if (sameSelectedNode) {
-                return;
-            }
-
             this.graph.getNode(this.clickedNodeKey).color = NodeColors.Default;
         }
 
         this.clickedNodeKey = this.getNodeFromCoordinates(x, y);
 
         if (this.clickedNodeKey) {
-            this.graph.getNode(this.clickedNodeKey).color = NodeColors.Active;
-
-            if (this.editMode === EditMode.Edges) {
+            if (this.editMode === EditMode.Nodes) {
+                this.graph.getNode(this.clickedNodeKey).color = NodeColors.Active;
+            }
+            else if (this.editMode === EditMode.Edges) {
                 this.newEdge = new GraphEdge(this.graph.getNode(this.clickedNodeKey), new GraphNode(x, y));
             }
-
-            this.redraw();
         }
+
+        if (this.editMode === EditMode.Edges) {
+            this.clickedEdgeKey = this.getEdgeFromCoordinates(x, y);
+        }
+
+        this.redraw();
     }
 
     @bind
     private canvasMouseMoveHandler(e: React.MouseEvent) {
-        if (!this.clickedNodeKey) {
-            return;
-        }
-
         const { x, y } = this.clientToCanvas(e.clientX, e.clientY);
 
-        if (this.editMode === EditMode.Nodes) {
-            this.graph.getNode(this.clickedNodeKey).moveTo(x, y);
-        } else {
-            this.newEdge.to.moveTo(x, y);
+        if (this.clickedEdgeKey) {
+            this.graph.getEdge(this.clickedEdgeKey).moveControlPoint(x, y);
+        }
+        else if (this.clickedNodeKey) {
+            if (this.editMode === EditMode.Nodes) {
+                this.graph.getNode(this.clickedNodeKey).moveTo(x, y);
+            } else {
+                this.newEdge.to.moveTo(x, y);
+            }
+        }
+        else if (this.editMode === EditMode.Edges) {
+            if (this.hoveredEdge) {
+                this.graph.getEdge(this.hoveredEdge).color = EdgeColor.Default;
+            }
+
+            this.hoveredEdge = this.getEdgeFromCoordinates(x, y);
+            if (this.hoveredEdge) {
+                this.graph.getEdge(this.hoveredEdge).color = EdgeColor.Hover;
+            }
         }
 
         this.redraw();
@@ -184,6 +199,7 @@ class GraphEditor extends React.Component {
 
     @bind
     private canvasMouseUpHandler(e: React.MouseEvent) {
+        this.clickedEdgeKey = "";
         if (!this.clickedNodeKey) {
             return;
         }

@@ -8,7 +8,7 @@ export enum NodeColors {
 export class GraphNode {
     public readonly key: string;
     public label?: string;
-    public color?: string;
+    public color: string = NodeColors.Default;
 
     public incidentEdges: Set<string> = new Set();
 
@@ -21,10 +21,12 @@ export class GraphNode {
     @observable private _y: number;
     public get y() { return this._y; }
 
-    constructor(x: number, y: number, label?: string, color: string = NodeColors.Default) {
+    @observable private _r: number = 12;
+    public get radius() { return this._r; }
+
+    constructor(x: number, y: number, label?: string) {
         this._x = x;
         this._y = y;
-        this.color = color;
         this.label = label;
 
         this.key = `node_${x}:${y}_${Date.now()}`;
@@ -39,6 +41,11 @@ export class GraphNode {
         });
     }
 
+    public setRadius(r: number) {
+        this._r = r;
+        this.createPath();
+    }
+
     public moveTo(x: number, y: number) {
         this._x = x;
         this._y = y;
@@ -47,6 +54,6 @@ export class GraphNode {
 
     private createPath() {
         this._path = new Path2D();
-        this._path.arc(this._x, this._y, 12, 0, 2 * Math.PI);
+        this._path.arc(this._x, this._y, this._r, 0, 2 * Math.PI);
     }
 }

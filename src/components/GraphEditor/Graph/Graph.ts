@@ -24,7 +24,7 @@ export class Graph {
     }
 
     public removeNode(key: string) {
-        this._nodes.get(key).incidentEdges.forEach(edgeKey => this._edges.delete(edgeKey));
+        this._nodes.get(key).incidentEdges.forEach(edgeKey => this.removeEdge(edgeKey));
         this._nodes.delete(key);
     }
 
@@ -50,6 +50,7 @@ export class Graph {
     }
 
     public paint(ctx: CanvasRenderingContext2D) {
+
         this._nodes.forEach(node => {
             ctx.save();
 
