@@ -6,17 +6,14 @@ import bind from "../../decorators/bind";
 
 type ItemClickHandler = (x: number, y: number) => void;
 
-interface IMenuItemProps {
+export interface IMenuItemProps {
     text: string;
     onClick: ItemClickHandler;
 }
 
-export type AvailableMenus = Record<string, IMenuItemProps[]>;
-
 interface IProps {
     canvasID: string;
-    chooseItemsBeforeOpen: (e: MouseEvent) => string;
-    availableMenus: AvailableMenus;
+    chooseItemsBeforeOpen: (e: MouseEvent) => IMenuItemProps[];
 }
 
 @observer
@@ -24,7 +21,7 @@ class CanvasContextMenu extends React.Component<IProps> {
     @observable private x: number;
     @observable private y: number;
     @observable private opened: boolean;
-    @observable private menuName: string;
+    private items: IMenuItemProps[];
 
     public componentDidMount() {
         document.getElementById(this.props.canvasID).addEventListener("contextmenu", this.contextMenuHandler);
@@ -41,8 +38,6 @@ class CanvasContextMenu extends React.Component<IProps> {
             return null;
         }
 
-        const currentMenuItems = this.props.availableMenus[this.menuName];
-
         return (
             <div
                 className="ui dropdown"
@@ -53,7 +48,7 @@ class CanvasContextMenu extends React.Component<IProps> {
                 }}
             >
                 <Dropdown.Menu open>
-                    {currentMenuItems.map(({ onClick, ...item }, key) =>
+                    {this.items.map(({ onClick, ...item }, key) =>
                         <Dropdown.Item key={key} {...item} onClick={this.itemClickHandler(onClick)} />
                     )}
                 </Dropdown.Menu>
@@ -69,7 +64,7 @@ class CanvasContextMenu extends React.Component<IProps> {
     @bind
     private contextMenuHandler(e: MouseEvent) {
         e.preventDefault();
-        this.menuName = this.props.chooseItemsBeforeOpen(e);
+        this.items = this.props.chooseItemsBeforeOpen(e);
 
         this.x = e.clientX;
         this.y = e.clientY;

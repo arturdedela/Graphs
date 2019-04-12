@@ -10,27 +10,27 @@ export enum EdgeColor {
 }
 
 export class GraphEdge {
-    public get path() { return this._path; }
     public get from() { return this._from; }
     public get to() { return this._to; }
     public get isLoop() { return this._to === this._from; }
     public get hitRegion() { return this._hitRegion; }
     public readonly key: string;
     public color: string = "#000";
+    public isDirected: boolean = true;
 
     private readonly _hitRegionWidth = 5;
     private _path: Path2D;
+    private _arrowPath: Path2D;
     private _hitRegion: Path2D;
-    @observable private readonly _from: GraphNode;
-    @observable private readonly _to: GraphNode;
+    @observable private _from: GraphNode;
+    @observable private _to: GraphNode;
     @observable private _cp: IPoint;
     @observable private _cp1: IPoint;
     @observable private _cp2: IPoint;
 
     constructor(
         from: GraphNode,
-        to: GraphNode,
-        public isDirected?: boolean
+        to: GraphNode
     ) {
         this._from = from;
         this._to = to;
@@ -48,6 +48,28 @@ export class GraphEdge {
         }
     }
 
+    public swapDirection() {
+        if (this.isLoop) {
+            return;
+        }
+
+        const tmp = this._to;
+        this._to = this._from;
+        this._from = tmp;
+    }
+
+    public paint(ctx: CanvasRenderingContext2D) {
+        ctx.save();
+        ctx.strokeStyle = this.color;
+        ctx.lineWidth = 2;
+        ctx.stroke(this._path);
+        if (this.isDirected) {
+            ctx.stroke(this._arrowPath);
+        }
+
+        ctx.restore();
+    }
+
     @bind
     private createPath() {
         const { x: cpx, y: cpy } = this._cp;
@@ -61,7 +83,26 @@ export class GraphEdge {
             this._path.quadraticCurveTo(cpx, cpy, this._to.x, this._to.y);
         }
 
+        if (this.isDirected) {
+            this.createDirectionArrow();
+        }
         this.createHitRegion();
+    }
+
+    private createDirectionArrow() {
+        const { x, y } = this._to;
+        const cpx = this.isLoop ? this._cp2.x : this._cp.x;
+        const cpy = this.isLoop ? this._cp2.y : this._cp.y;
+        const v = new Vector(x - cpx, y - cpy);
+        v.rotate(Math.PI / 8);
+        v.length = 20;
+
+        this._arrowPath = new Path2D();
+        this._arrowPath.moveTo(x - v.x, y - v.y);
+        this._arrowPath.lineTo(x, y);
+
+        v.rotate(-Math.PI / 4);
+        this._arrowPath.lineTo(x - v.x, y - v.y);
     }
 
     private createHitRegion() {
@@ -125,6 +166,16 @@ export class GraphEdge {
         let incidentCount = 0;
         this._from.incidentEdges.forEach(edge => this._to.incidentEdges.has(edge) && incidentCount++);
 
+        if (this.isLoop) {
+            this._cp = {
+                x: this._from.x + 4 * this._from.radius * (incidentCount + 1),
+                y: this._from.y
+            };
+            this.calcLoopControlPoints();
+
+            return;
+        }
+
         const v = new Vector(this._from.x - this._to.x, this._from.y - this._to.y);
         v.rotate(Math.PI / 2);
         v.length = 15 * incidentCount;
@@ -134,11 +185,6 @@ export class GraphEdge {
             x: (this._from.x + this._to.x) / 2 + sign * v.x,
             y: (this._from.y + this._to.y) / 2 + sign * v.y
         };
-
-        if (this.isLoop) {
-            this._cp.x += 5 * this._from.radius;
-            this.calcLoopControlPoints();
-        }
     }
     
     private calcLoopControlPoints() {

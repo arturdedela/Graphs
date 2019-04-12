@@ -5,19 +5,13 @@ import { GraphNode, NodeColors } from "./Graph/GraphNode";
 import RadioGroup from "../RadioGroup/RadioGroup";
 import { EdgeColor, GraphEdge } from "./Graph/GraphEdge";
 import { Graph } from "./Graph/Graph";
-import CanvasContextMenu, { AvailableMenus } from "../CanvasContextMenu/CanvasContextMenu";
+import CanvasContextMenu, { IMenuItemProps } from "../CanvasContextMenu/CanvasContextMenu";
 
 const LEFT_MOUSE_BUTTON = 0;
 
 enum EditMode {
     Nodes,
     Edges
-}
-
-enum ContextMenuName {
-    Canvas = "canvas",
-    Node  = "node",
-    Edge = "edge"
 }
 
 class GraphEditor extends React.Component {
@@ -38,18 +32,6 @@ class GraphEditor extends React.Component {
     private ctxMenuEdgeKey: string = "";
 
     private editMode: EditMode = EditMode.Nodes;
-
-    private contextMenus: AvailableMenus = {
-        [ContextMenuName.Canvas]: [
-            { text: "Add node", onClick: this.addNode }
-        ],
-        [ContextMenuName.Node]: [
-            { text: "Delete", onClick: this.deleteNode }
-        ],
-        [ContextMenuName.Edge]: [
-            { text: "Delete", onClick: this.deleteEdge }
-        ]
-    };
 
     public componentDidMount() {
         this.ctx = this.canvas.getContext("2d");
@@ -83,7 +65,6 @@ class GraphEditor extends React.Component {
                 <CanvasContextMenu
                     canvasID={this.canvasID}
                     chooseItemsBeforeOpen={this.chooseContextMenu}
-                    availableMenus={this.contextMenus}
                 />
             </div>
         );
@@ -96,7 +77,7 @@ class GraphEditor extends React.Component {
         this.graph.paint(this.ctx);
 
         if (this.newEdge) {
-            this.ctx.stroke(this.newEdge.path);
+            this.newEdge.paint(this.ctx);
         }
     }
 
@@ -120,8 +101,22 @@ class GraphEditor extends React.Component {
     }
 
     @bind
+    private toggleEdgeDirection() {
+        const edge = this.graph.getEdge(this.ctxMenuEdgeKey);
+        edge.isDirected = !edge.isDirected;
+        this.redraw();
+    }
+
+    @bind
+    private changeEdgeDirection() {
+        this.graph.getEdge(this.ctxMenuEdgeKey).swapDirection();
+        this.redraw();
+    }
+
+    @bind
     private deleteEdge() {
         this.graph.removeEdge(this.ctxMenuEdgeKey);
+        this.hoveredEdge = "";
         this.redraw();
     }
 
@@ -222,20 +217,38 @@ class GraphEditor extends React.Component {
     }
 
     @bind
-    private chooseContextMenu(e: MouseEvent): ContextMenuName {
+    private chooseContextMenu(e: MouseEvent): IMenuItemProps[] {
         const { x, y } = this.clientToCanvas(e.clientX, e.clientY);
 
         this.ctxMenuNodeKey = this.getNodeFromCoordinates(x, y);
         if (this.ctxMenuNodeKey) {
-            return ContextMenuName.Node;
+            return [
+                { text: "Delete", onClick: this.deleteNode }
+            ];
         }
 
         this.ctxMenuEdgeKey = this.getEdgeFromCoordinates(x, y);
         if (this.ctxMenuEdgeKey) {
-            return ContextMenuName.Edge;
+            const { isDirected } = this.graph.getEdge(this.ctxMenuEdgeKey);
+            const edgeMenu: IMenuItemProps[] = [];
+            if (isDirected) {
+                edgeMenu.push(
+                    { text: "Make undirected", onClick: this.toggleEdgeDirection },
+                    { text: "Change direction", onClick: this.changeEdgeDirection }
+                );
+            } else {
+                edgeMenu.push(
+                    { text: "Make directed", onClick: this.toggleEdgeDirection }
+                );
+            }
+            edgeMenu.push({ text: "Delete", onClick: this.deleteEdge });
+
+            return edgeMenu;
         }
 
-        return ContextMenuName.Canvas;
+        return [
+            { text: "Add node", onClick: this.addNode }
+        ];
     }
 
     @bind

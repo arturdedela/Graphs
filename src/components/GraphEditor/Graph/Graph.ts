@@ -61,18 +61,6 @@ export class Graph {
             ctx.restore();
         });
 
-        this._edges.forEach(edge => {
-            ctx.save();
-
-            ctx.lineJoin = "round";
-            ctx.lineCap = "round";
-            ctx.lineWidth = 2;
-            ctx.strokeStyle = edge.color;
-            ctx.stroke(edge.path);
-
-            ctx.restore();
-        });
+        this._edges.forEach(edge => edge.paint(ctx));
     }
-
-
 }
