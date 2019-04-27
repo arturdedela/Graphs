@@ -4,8 +4,10 @@ import bind from "../../decorators/bind";
 import { GraphNode, NodeColors } from "./Graph/GraphNode";
 import RadioGroup from "../RadioGroup/RadioGroup";
 import { EdgeColor, GraphEdge } from "./Graph/GraphEdge";
-import { Graph } from "./Graph/Graph";
+import { Graph, IGraphRaw } from "./Graph/Graph";
 import CanvasContextMenu, { IMenuItemProps } from "../CanvasContextMenu/CanvasContextMenu";
+import { StateHistory } from "./StateHistory";
+import { Button } from "semantic-ui-react";
 
 const LEFT_MOUSE_BUTTON = 0;
 
@@ -22,6 +24,7 @@ class GraphEditor extends React.Component {
     private ctx: CanvasRenderingContext2D;
 
     private graph = new Graph();
+    private graphHistory = new StateHistory<IGraphRaw>();
 
     private clickedNodeKey: string = "";
     private ctxMenuNodeKey: string = "";
@@ -35,6 +38,11 @@ class GraphEditor extends React.Component {
 
     public componentDidMount() {
         this.ctx = this.canvas.getContext("2d");
+
+        this.graphHistory.add(this.graph.toObject());
+        this.graphHistory.onHistoryChange = this.handleGraphHistoryChange;
+
+        this.redraw();
     }
 
     public render() {
@@ -63,6 +71,9 @@ class GraphEditor extends React.Component {
                     onChange={this.changeEditMode}
                 />
 
+                <Button onClick={this.graphHistory.back}>Back</Button>
+                <Button onClick={this.graphHistory.forward}>Forward</Button>
+
                 <CanvasContextMenu
                     canvasID={this.canvasID}
                     chooseItemsBeforeOpen={this.chooseContextMenu}
@@ -72,7 +83,7 @@ class GraphEditor extends React.Component {
     }
 
     @bind
-    public redraw() {
+    private redraw() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
         this.graph.paint(this.ctx);
@@ -80,6 +91,12 @@ class GraphEditor extends React.Component {
         if (this.newEdge) {
             this.newEdge.paint(this.ctx);
         }
+    }
+
+    @bind
+    private handleGraphHistoryChange(state: IGraphRaw) {
+        this.graph = Graph.fromObject(state);
+        this.redraw();
     }
 
     @bind
@@ -92,12 +109,16 @@ class GraphEditor extends React.Component {
         const { x, y } = this.clientToCanvas(clientX, clientY);
 
         this.graph.addNode(x, y);
+
+        this.graphHistory.add(this.graph.toObject());
         this.redraw();
     }
 
     @bind
     private deleteNode() {
         this.graph.removeNode(this.ctxMenuNodeKey);
+
+        this.graphHistory.add(this.graph.toObject());
         this.redraw();
     }
 
@@ -105,12 +126,16 @@ class GraphEditor extends React.Component {
     private toggleEdgeDirection() {
         const edge = this.graph.getEdge(this.ctxMenuEdgeKey);
         edge.isDirected = !edge.isDirected;
+
+        this.graphHistory.add(this.graph.toObject());
         this.redraw();
     }
 
     @bind
     private changeEdgeDirection() {
         this.graph.getEdge(this.ctxMenuEdgeKey).swapDirection();
+
+        this.graphHistory.add(this.graph.toObject());
         this.redraw();
     }
 
@@ -118,6 +143,8 @@ class GraphEditor extends React.Component {
     private deleteEdge() {
         this.graph.removeEdge(this.ctxMenuEdgeKey);
         this.hoveredEdge = "";
+
+        this.graphHistory.add(this.graph.toObject());
         this.redraw();
     }
 
@@ -197,7 +224,11 @@ class GraphEditor extends React.Component {
 
     @bind
     private canvasMouseUpHandler(e: React.MouseEvent) {
-        this.clickedEdgeKey = "";
+        if (this.clickedEdgeKey) {
+            this.clickedEdgeKey = "";
+            this.graphHistory.add(this.graph.toObject());
+        }
+
         if (!this.clickedNodeKey) {
             return;
         }
@@ -216,6 +247,8 @@ class GraphEditor extends React.Component {
 
         this.graph.getNode(this.clickedNodeKey).color = NodeColors.Default;
         this.clickedNodeKey = "";
+
+        this.graphHistory.add(this.graph.toObject());
         this.redraw();
     }
 

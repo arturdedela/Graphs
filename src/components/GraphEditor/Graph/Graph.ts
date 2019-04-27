@@ -30,6 +30,10 @@ export class Graph {
         };
     }
 
+    public toObject(): IGraphRaw {
+        return JSON.parse(JSON.stringify(this));
+    }
+
     public get nodes() {
         return [...this._nodes.values()];
     }
