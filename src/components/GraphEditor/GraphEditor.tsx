@@ -42,13 +42,14 @@ class GraphEditor extends React.Component {
             <div>
                 <canvas
                     ref={this.canvasRef}
-                    width={900}
-                    height={500}
                     id={this.canvasID}
+                    width={1080}
+                    height={500}
                     className="canvas"
                     onMouseDown={this.canvasMouseDownHandler}
                     onMouseMove={this.canvasMouseMoveHandler}
                     onMouseUp={this.canvasMouseUpHandler}
+                    onMouseOut={this.canvasMouseUpHandler}
                 />
 
                 <span>Edit mode:</span>
@@ -187,6 +188,8 @@ class GraphEditor extends React.Component {
             if (this.hoveredEdge) {
                 this.graph.getEdge(this.hoveredEdge).color = EdgeColor.Hover;
             }
+        } else {
+            return;
         }
 
         this.redraw();

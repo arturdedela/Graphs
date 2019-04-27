@@ -20,6 +20,8 @@ interface IProps {
 class CanvasContextMenu extends React.Component<IProps> {
     @observable private x: number;
     @observable private y: number;
+    @observable private menuX: number;
+    @observable private menuY: number;
     @observable private opened: boolean;
     private items: IMenuItemProps[];
 
@@ -43,8 +45,8 @@ class CanvasContextMenu extends React.Component<IProps> {
                 className="ui dropdown"
                 style={{
                     position: "absolute",
-                    left: this.x,
-                    top: this.y
+                    left: this.menuX,
+                    top: this.menuY
                 }}
             >
                 <Dropdown.Menu open>
@@ -68,6 +70,10 @@ class CanvasContextMenu extends React.Component<IProps> {
 
         this.x = e.clientX;
         this.y = e.clientY;
+
+        this.menuX = e.pageX;
+        this.menuY = e.pageY;
+
         this.opened = true;
     }
 
