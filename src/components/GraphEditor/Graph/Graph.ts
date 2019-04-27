@@ -1,10 +1,34 @@
-import { GraphNode } from "./GraphNode";
-import { GraphEdge } from "./GraphEdge";
+import { GraphNode, IGraphNodeRaw } from "./GraphNode";
+import { GraphEdge, IGraphEdgeRaw } from "./GraphEdge";
 
+export interface IGraphRaw {
+    nodes: IGraphNodeRaw[];
+    edges: IGraphEdgeRaw[];
+}
 
 export class Graph {
+    public static fromObject(o: IGraphRaw): Graph {
+        const graph = new Graph();
+        graph._nodes = new Map(o.nodes.map(node => [node.key, GraphNode.fromObject(node)]));
+        graph._edges = new Map(o.edges.map(edge => {
+            const from = graph._nodes.get(edge.fromNodeKey);
+            const to = graph._nodes.get(edge.toNodeKey);
+
+            return [edge.key, GraphEdge.fromObject(edge, from, to)];
+        }));
+
+        return graph;
+    }
+
     private _nodes: Map<string, GraphNode> = new Map();
     private _edges: Map<string, GraphEdge> = new Map();
+
+    public toJSON() {
+        return {
+            nodes: this.nodes,
+            edges: this.edges
+        };
+    }
 
     public get nodes() {
         return [...this._nodes.values()];

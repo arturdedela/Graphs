@@ -5,7 +5,26 @@ export enum NodeColors {
     Active = "#f83"
 }
 
+export interface IGraphNodeRaw {
+    x: number;
+    y: number;
+    r: number;
+    label: string;
+    color: string;
+    key: string;
+    incidentEdges: string[];
+}
+
 export class GraphNode {
+    public static fromObject(o: IGraphNodeRaw): GraphNode {
+        const node = new GraphNode(o.x, o.y, o.label, o.key);
+        node.setRadius(o.r);
+        node.color = o.color;
+        node.incidentEdges = new Set(o.incidentEdges);
+
+        return node;
+    }
+
     public readonly key: string;
     public label?: string;
     public color: string = NodeColors.Default;
@@ -24,21 +43,26 @@ export class GraphNode {
     @observable private _r: number = 12;
     public get radius() { return this._r; }
 
-    constructor(x: number, y: number, label?: string) {
+    constructor(x: number, y: number, label?: string, key?: string) {
         this._x = x;
         this._y = y;
         this.label = label;
 
-        this.key = `node_${x}:${y}_${Date.now()}`;
+        this.key = key || `node_${x}:${y}_${Date.now()}`;
 
         this.createPath();
     }
 
-    public toJSON(): string {
-        return JSON.stringify({
+    public toJSON() {
+        return {
             x: this._x,
-            y: this._y
-        });
+            y: this._y,
+            r: this.radius,
+            label: this.label,
+            color: this.color,
+            key: this.key,
+            incidentEdges: [...this.incidentEdges.values()]
+        };
     }
 
     public setRadius(r: number) {

@@ -9,7 +9,32 @@ export enum EdgeColor {
     Hover = "#ffdd08"
 }
 
+export interface IGraphEdgeRaw {
+    key: string;
+    color: string;
+    isDirected: boolean;
+    fromNodeKey: string;
+    toNodeKey: string;
+    cp: IPoint;
+    cp1: IPoint;
+    cp2: IPoint;
+}
+
 export class GraphEdge {
+    public static fromObject(o: IGraphEdgeRaw, from: GraphNode, to: GraphNode): GraphEdge {
+        const edge = new GraphEdge(from, to, o.key);
+        edge.color = o.color;
+        edge.isDirected = o.isDirected;
+        edge._cp = Object.assign({}, o.cp);
+
+        if (edge.isLoop) {
+            edge._cp1 = Object.assign({}, o.cp1);
+            edge._cp2 = Object.assign({}, o.cp2);
+        }
+
+        return edge;
+    }
+
     public get from() { return this._from; }
     public get to() { return this._to; }
     public get isLoop() { return this._to === this._from; }
@@ -30,15 +55,29 @@ export class GraphEdge {
 
     constructor(
         from: GraphNode,
-        to: GraphNode
+        to: GraphNode,
+        key?: string
     ) {
         this._from = from;
         this._to = to;
 
-        this.key = `edge_${this.from.x}:${this.from.y}_${Date.now()}`;
+        this.key = key || `edge_${this.from.x}:${this.from.y}_${Date.now()}`;
         this.initControlPoint();
 
         autorun(this.createPath);
+    }
+
+    public toJSON() {
+        return {
+            key: this.key,
+            color: this.color,
+            isDirected: this.isDirected,
+            fromNodeKey: this._from.key,
+            toNodeKey: this._to.key,
+            cp: this._cp,
+            cp1: this._cp1,
+            cp2: this._cp2,
+        };
     }
 
     public moveControlPoint(x: number, y: number) {
