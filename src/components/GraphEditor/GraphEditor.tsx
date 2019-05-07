@@ -2,24 +2,23 @@ import * as React from "react";
 import "./style.scss";
 import bind from "../../decorators/bind";
 import { GraphNode, NodeColors } from "./Graph/GraphNode";
-import RadioGroup from "../RadioGroup/RadioGroup";
 import { EdgeColor, GraphEdge } from "./Graph/GraphEdge";
 import { Graph, IGraphRaw } from "./Graph/Graph";
 import CanvasContextMenu, { IMenuItemProps } from "../CanvasContextMenu/CanvasContextMenu";
 import { StateHistory } from "./StateHistory";
-import { Button } from "semantic-ui-react";
+import { Button, Checkbox, Dropdown, Icon, Menu, Segment, Sidebar } from "semantic-ui-react";
+import { observable } from "mobx";
+import { observer } from "mobx-react";
 
 const LEFT_MOUSE_BUTTON = 0;
 
-enum EditMode {
-    Nodes,
-    Edges
-}
-
+@observer
 class GraphEditor extends React.Component {
     private canvasRef = React.createRef<HTMLCanvasElement>();
     private get canvas() { return this.canvasRef.current; }
     private canvasID = "graph-canvas";
+    @observable private canvasWidth: number;
+    @observable private canvasHeight: number;
 
     private ctx: CanvasRenderingContext2D;
 
@@ -34,9 +33,15 @@ class GraphEditor extends React.Component {
     private hoveredEdge: string = "";
     private ctxMenuEdgeKey: string = "";
 
-    private editMode: EditMode = EditMode.Nodes;
+    @observable private nodeEditing: boolean = true;
+    @observable private showAdjacencyMatrix: boolean = false;
+
+    @observable private sidebarVisible = false;
+    private sidebarTimeout: any;
 
     public componentDidMount() {
+        this.resizeCanvas();
+
         this.ctx = this.canvas.getContext("2d");
 
         this.graphHistory.add(this.graph.toObject());
@@ -48,31 +53,70 @@ class GraphEditor extends React.Component {
     public render() {
         return (
             <div>
-                <canvas
-                    ref={this.canvasRef}
-                    id={this.canvasID}
-                    width={1080}
-                    height={500}
-                    className="canvas"
-                    onMouseDown={this.canvasMouseDownHandler}
-                    onMouseMove={this.canvasMouseMoveHandler}
-                    onMouseUp={this.canvasMouseUpHandler}
-                    onMouseOut={this.canvasMouseUpHandler}
-                />
+                <Sidebar.Pushable as={Segment}>
+                    <Sidebar
+                        id="canvas-sidebar"
+                        as={Menu}
+                        animation="scale down"
+                        onHide={this.hideSideBar}
+                        direction="top"
+                        visible={this.sidebarVisible}
+                        width="wide"
+                        onMouseLeave={this.timeoutSidebarHide}
+                        onMouseEnter={this.clearHideTimeout}
+                    >
+                        <Dropdown item text="File">
+                            <Dropdown.Menu>
+                                <Dropdown.Item>Open</Dropdown.Item>
+                                <Dropdown.Item onClick={this.saveCanvasImage}>Save</Dropdown.Item>
+                            </Dropdown.Menu>
+                        </Dropdown>
+                        <Dropdown item text="Export as">
+                            <Dropdown.Menu>
+                                <Dropdown.Item>Adjacency matrix</Dropdown.Item>
+                                <Dropdown.Item>Incidence matrix</Dropdown.Item>
+                                <Dropdown.Item>List of edges and nodes</Dropdown.Item>
+                            </Dropdown.Menu>
+                        </Dropdown>
 
-                <span>Edit mode:</span>
-                <RadioGroup
-                    radioClassName="mode-radio"
-                    options={[
-                        { label: "Nodes", value: EditMode.Nodes },
-                        { label: "Edges", value: EditMode.Edges }
-                    ]}
-                    initialChecked={this.editMode}
-                    onChange={this.changeEditMode}
-                />
+                        <Menu.Menu position="right">
+                            <Menu.Item>
+                                <Checkbox toggle label="Adjacency matrix" onClick={this.toggleAdjacencyMatrix}  />
+                            </Menu.Item>
+                            <Menu.Item>
+                                <Button toggle active={this.nodeEditing} color="orange" onClick={this.toggleEditMode}>
+                                    {this.nodeEditing ? "Nodes" : "Edges"}
+                                </Button>
+                            </Menu.Item>
 
-                <Button onClick={this.graphHistory.back}>Back</Button>
-                <Button onClick={this.graphHistory.forward}>Forward</Button>
+                            <Menu.Item as="a" onClick={this.graphHistory.back}>
+                                <Icon name="step backward"/>
+                                Undo
+                            </Menu.Item>
+                            <Menu.Item as="a" onClick={this.graphHistory.forward}>
+                                <Icon name="step forward" />
+                                Redo
+                            </Menu.Item>
+                        </Menu.Menu>
+                    </Sidebar>
+
+                    <div className="sidebar-area" onMouseEnter={this.showSideBar}>
+                        <Icon name="chevron down" style={{ margin: "0 auto", display: "block" }} />
+                    </div>
+                    <Sidebar.Pusher>
+                        <canvas
+                            ref={this.canvasRef}
+                            id={this.canvasID}
+                            width={this.canvasWidth}
+                            height={this.canvasHeight}
+                            className="canvas"
+                            onMouseDown={this.canvasMouseDownHandler}
+                            onMouseMove={this.canvasMouseMoveHandler}
+                            onMouseUp={this.canvasMouseUpHandler}
+                            onMouseOut={this.canvasMouseUpHandler}
+                        />
+                    </Sidebar.Pusher>
+                </Sidebar.Pushable>
 
                 <CanvasContextMenu
                     canvasID={this.canvasID}
@@ -80,6 +124,19 @@ class GraphEditor extends React.Component {
                 />
             </div>
         );
+    }
+
+    private showSideBar = () => this.sidebarVisible = true;
+    private hideSideBar = () => this.sidebarVisible = false;
+
+    @bind
+    private timeoutSidebarHide() {
+        this.sidebarTimeout = setTimeout(this.hideSideBar, 400);
+    }
+
+    @bind
+    private clearHideTimeout() {
+        clearTimeout(this.sidebarTimeout);
     }
 
     @bind
@@ -94,14 +151,26 @@ class GraphEditor extends React.Component {
     }
 
     @bind
+    private resizeCanvas() {
+        const { width } = this.canvas.parentElement.getBoundingClientRect();
+        this.canvasWidth = width;
+        this.canvasHeight = window.innerHeight - 107; // minus footerSize
+    }
+
+    @bind
     private handleGraphHistoryChange(state: IGraphRaw) {
         this.graph = Graph.fromObject(state);
         this.redraw();
     }
 
     @bind
-    private changeEditMode(mode: EditMode) {
-        this.editMode = mode;
+    private toggleEditMode() {
+        this.nodeEditing = !this.nodeEditing;
+    }
+
+    @bind
+    private toggleAdjacencyMatrix() {
+        this.showAdjacencyMatrix = !this.showAdjacencyMatrix;
     }
 
     @bind
@@ -177,15 +246,15 @@ class GraphEditor extends React.Component {
         this.clickedNodeKey = this.getNodeFromCoordinates(x, y);
 
         if (this.clickedNodeKey) {
-            if (this.editMode === EditMode.Nodes) {
+            if (this.nodeEditing) {
                 this.graph.getNode(this.clickedNodeKey).color = NodeColors.Active;
             }
-            else if (this.editMode === EditMode.Edges) {
+            else {
                 this.newEdge = new GraphEdge(this.graph.getNode(this.clickedNodeKey), new GraphNode(x, y));
             }
         }
 
-        if (this.editMode === EditMode.Edges) {
+        if (!this.nodeEditing) {
             this.clickedEdgeKey = this.getEdgeFromCoordinates(x, y);
         }
 
@@ -200,13 +269,13 @@ class GraphEditor extends React.Component {
             this.graph.getEdge(this.clickedEdgeKey).moveControlPoint(x, y);
         }
         else if (this.clickedNodeKey) {
-            if (this.editMode === EditMode.Nodes) {
+            if (this.nodeEditing) {
                 this.graph.getNode(this.clickedNodeKey).moveTo(x, y);
             } else {
                 this.newEdge.to.moveTo(x, y);
             }
         }
-        else if (this.editMode === EditMode.Edges) {
+        else if (!this.nodeEditing) {
             if (this.hoveredEdge) {
                 this.graph.getEdge(this.hoveredEdge).color = EdgeColor.Default;
             }
@@ -235,7 +304,7 @@ class GraphEditor extends React.Component {
 
         const { x, y } = this.clientToCanvas(e.clientX, e.clientY);
 
-        if (this.editMode === EditMode.Edges) {
+        if (!this.nodeEditing) {
             const toNode = this.getNodeFromCoordinates(x, y);
 
             if (toNode) {
@@ -285,6 +354,14 @@ class GraphEditor extends React.Component {
         return [
             { text: "Add node", onClick: this.addNode }
         ];
+    }
+
+    @bind
+    private saveCanvasImage() {
+        const link = document.createElement("a");
+        link.href = this.canvas.toDataURL();
+        link.download = "graph.png";
+        link.click();
     }
 
     @bind

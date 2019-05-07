@@ -1,8 +1,12 @@
-.canvas {
-    display: block;
-    border: 1px solid #111;
-    border-radius: 10px;
-    margin-bottom: 15px;
+.sidebar-area {
+    position: absolute;
+    height: 15px;
+    width: 100%;
+    z-index: 3;
+}
+
+#canvas-sidebar {
+    overflow-y: visible !important;
 }
 
 .mode-radio {

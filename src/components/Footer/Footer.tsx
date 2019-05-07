@@ -6,7 +6,7 @@ class Footer extends React.Component {
 
     public render() {
         return (
-            <Segment inverted vertical style={{ margin: "5em 0em 0em", padding: "2em 0em" }}>
+            <Segment inverted vertical style={{ margin: "25px 0 0", padding: "2em 0em" }}>
                 <Container textAlign="center">
 
                     <List horizontal inverted divided link size="small">
