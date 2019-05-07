@@ -6,7 +6,19 @@ import { EdgeColor, GraphEdge } from "./Graph/GraphEdge";
 import { Graph, IGraphRaw } from "./Graph/Graph";
 import CanvasContextMenu, { IMenuItemProps } from "../CanvasContextMenu/CanvasContextMenu";
 import { StateHistory } from "./StateHistory";
-import { Button, Checkbox, Dropdown, Icon, Menu, Segment, Sidebar } from "semantic-ui-react";
+import {
+    Button,
+    Checkbox,
+    Dropdown,
+    Icon,
+    Input,
+    InputOnChangeData,
+    Menu,
+    Modal,
+    Popup,
+    Segment,
+    Sidebar
+} from "semantic-ui-react";
 import { observable } from "mobx";
 import { observer } from "mobx-react";
 
@@ -30,11 +42,16 @@ class GraphEditor extends React.Component {
 
     private newEdge?: GraphEdge;
     private clickedEdgeKey: string = "";
-    private hoveredEdge: string = "";
+    @observable private hoveredEdge: string = "";
+    @observable private weightPopupPosition = { x: 0, y: 0};
     private ctxMenuEdgeKey: string = "";
 
     @observable private nodeEditing: boolean = true;
     @observable private showAdjacencyMatrix: boolean = false;
+
+    @observable private modalVisible = false;
+    private modalInputValue: string;
+    private onModalConfirm: () => any;
 
     @observable private sidebarVisible = false;
     private sidebarTimeout: any;
@@ -118,12 +135,66 @@ class GraphEditor extends React.Component {
                     </Sidebar.Pusher>
                 </Sidebar.Pushable>
 
+                {this.hoveredEdge &&
+                <Popup
+                    trigger={
+                        <span
+                            style={{
+                                position: "absolute",
+                                left: this.weightPopupPosition.x,
+                                top: this.weightPopupPosition.y
+                            }}
+                        />
+                    }
+                    position="top center"
+                    content={`Weight: ${this.graph.getEdge(this.hoveredEdge).weight}`}
+                    open
+                />
+                }
+
+                <Modal open={this.modalVisible} size="mini" onClose={this.hideModal}>
+                    <Modal.Header>Enter value</Modal.Header>
+                    <Modal.Content>
+                        <Input onChange={this.handleModalInputChange} />
+                    </Modal.Content>
+                    <Modal.Actions>
+                        <Button negative onClick={this.hideModal}>Cancel</Button>
+                        <Button
+                            positive
+                            icon="checkmark"
+                            labelPosition="right"
+                            content="Confirm"
+                            onClick={this.handleModalConfirm}
+                        />
+                    </Modal.Actions>
+                </Modal>
+
                 <CanvasContextMenu
                     canvasID={this.canvasID}
                     chooseItemsBeforeOpen={this.chooseContextMenu}
                 />
             </div>
         );
+    }
+
+    private showModal = () => this.modalVisible = true;
+    private hideModal = () => this.modalVisible = false;
+
+    @bind
+    private handleModalInputChange(e: React.ChangeEvent, data: InputOnChangeData) {
+        this.modalInputValue = data.value;
+    }
+
+    private openModalWithCallback(onConfirm: () => any) {
+        this.hoveredEdge = "";
+        this.showModal();
+        this.onModalConfirm = onConfirm;
+    }
+
+    @bind
+    private handleModalConfirm() {
+        this.hideModal();
+        this.onModalConfirm();
     }
 
     private showSideBar = () => this.sidebarVisible = true;
@@ -209,6 +280,14 @@ class GraphEditor extends React.Component {
     }
 
     @bind
+    private changeEdgeWeight() {
+        this.graph.getEdge(this.ctxMenuEdgeKey).weight = parseInt(this.modalInputValue, 10);
+
+        this.graphHistory.add(this.graph.toObject());
+        this.redraw();
+    }
+
+    @bind
     private deleteEdge() {
         this.graph.removeEdge(this.ctxMenuEdgeKey);
         this.hoveredEdge = "";
@@ -282,6 +361,7 @@ class GraphEditor extends React.Component {
 
             this.hoveredEdge = this.getEdgeFromCoordinates(x, y);
             if (this.hoveredEdge) {
+                this.weightPopupPosition = { x, y };
                 this.graph.getEdge(this.hoveredEdge).color = EdgeColor.Hover;
             }
         } else {
@@ -346,6 +426,7 @@ class GraphEditor extends React.Component {
                     { text: "Make directed", onClick: this.toggleEdgeDirection }
                 );
             }
+            edgeMenu.push({ text: "Change weight", onClick: () => this.openModalWithCallback(this.changeEdgeWeight) });
             edgeMenu.push({ text: "Delete", onClick: this.deleteEdge });
 
             return edgeMenu;

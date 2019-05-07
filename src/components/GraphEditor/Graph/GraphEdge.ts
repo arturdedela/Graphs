@@ -12,6 +12,7 @@ export enum EdgeColor {
 export interface IGraphEdgeRaw {
     key: string;
     color: string;
+    weight: number;
     isDirected: boolean;
     fromNodeKey: string;
     toNodeKey: string;
@@ -23,6 +24,7 @@ export interface IGraphEdgeRaw {
 export class GraphEdge {
     public static fromObject(o: IGraphEdgeRaw, from: GraphNode, to: GraphNode): GraphEdge {
         const edge = new GraphEdge(from, to, o.key);
+        edge.weight = o.weight;
         edge.color = o.color;
         edge.isDirected = o.isDirected;
         edge._cp = Object.assign({}, o.cp);
@@ -42,6 +44,7 @@ export class GraphEdge {
     public readonly key: string;
     public color: string = "#000";
     public isDirected: boolean = true;
+    public weight: number = 1;
 
     private readonly _hitRegionWidth = 5;
     private _path: Path2D;
@@ -67,10 +70,11 @@ export class GraphEdge {
         autorun(this.createPath);
     }
 
-    public toJSON() {
+    public toJSON(): IGraphEdgeRaw {
         return {
             key: this.key,
             color: this.color,
+            weight: this.weight,
             isDirected: this.isDirected,
             fromNodeKey: this._from.key,
             toNodeKey: this._to.key,
