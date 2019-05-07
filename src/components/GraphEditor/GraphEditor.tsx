@@ -57,14 +57,18 @@ class GraphEditor extends React.Component {
     private sidebarTimeout: any;
 
     public componentDidMount() {
-        this.resizeCanvas();
+        window.addEventListener("resize", this.resizeCanvas);
 
         this.ctx = this.canvas.getContext("2d");
 
         this.graphHistory.add(this.graph.toObject());
         this.graphHistory.onHistoryChange = this.handleGraphHistoryChange;
 
-        this.redraw();
+        this.resizeCanvas();
+    }
+
+    public componentWillUnmount() {
+        window.removeEventListener("resize", this.resizeCanvas);
     }
 
     public render() {
@@ -84,6 +88,7 @@ class GraphEditor extends React.Component {
                     >
                         <Dropdown item text="File">
                             <Dropdown.Menu>
+                                <Dropdown.Item onClick={this.reset}>New Graph</Dropdown.Item>
                                 <Dropdown.Item>Open</Dropdown.Item>
                                 <Dropdown.Item onClick={this.saveCanvasImage}>Save</Dropdown.Item>
                             </Dropdown.Menu>
@@ -226,6 +231,7 @@ class GraphEditor extends React.Component {
         const { width } = this.canvas.parentElement.getBoundingClientRect();
         this.canvasWidth = width;
         this.canvasHeight = window.innerHeight - 107; // minus footerSize
+        this.redraw();
     }
 
     @bind
@@ -452,6 +458,13 @@ class GraphEditor extends React.Component {
         const y = clientY - rect.top;
 
         return { x, y };
+    }
+
+    @bind
+    private reset() {
+        this.graph = new Graph();
+        this.graphHistory.reset();
+        this.redraw();
     }
 }
 

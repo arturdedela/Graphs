@@ -53,7 +53,7 @@ export class GraphNode {
         this.createPath();
     }
 
-    public toJSON() {
+    public toJSON(): IGraphNodeRaw {
         return {
             x: this._x,
             y: this._y,

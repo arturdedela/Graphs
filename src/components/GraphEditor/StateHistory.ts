@@ -53,4 +53,9 @@ export class StateHistory<T = any> {
 
         return this._history[this.i];
     }
+
+    public reset() {
+        this._history = [];
+        this.i = 0;
+    }
 }
